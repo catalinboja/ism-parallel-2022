@@ -3,6 +3,7 @@
 #include <omp.h>
 #include <vector>
 #include <thread>
+#include <mutex>
 
 using namespace std;
 
@@ -21,13 +22,30 @@ void countPrimes(long lowerLimit, long upperLimit, long& result) {
 	}
 }
 
+void syncCountPrimes(long lowerLimit, long upperLimit, long& result, mutex& mutex) {
+	for (long i = lowerLimit; i < upperLimit; ++i) {
+		bool isPrime = true;
+		for (long j = 2; j < i / 2; ++j) {
+			if (i % j == 0) {
+				isPrime = false;
+				break;
+			}
+		}
+		mutex.lock();
+		if (isPrime) {
+			result += 1;
+		}
+		mutex.unlock();
+	}
+}
+
 
 //
 // Count number of primes in a given set of numbers
 //
 long sequentialSolution(long setSize) {
 	long noPrimes = 0;
-	countPrimes(1, setSize, noPrimes);
+	countPrimes(0, setSize, noPrimes);
 	return noPrimes;
 
 }
@@ -55,7 +73,29 @@ long parallelRaceSolution(long setSize) {
 		threads[i].join();
 	}
 	return noPrimes;
+}
 
+long parallelMutexSolution(long setSize) {
+	long noPrimes = 0;
+	int noThreads = omp_get_num_procs();
+
+	mutex lockObject;
+
+	vector<thread> threads;
+	long intervalSize = setSize / noThreads;
+
+	for (int i = 0; i < noThreads; ++i) {
+		long lowerLimit = i * intervalSize;
+		long upperLimit = (i + 1) * intervalSize;
+		if (i == noThreads - 1) {
+			upperLimit = setSize;
+		}
+		threads.push_back(thread(syncCountPrimes, lowerLimit, upperLimit, ref(noPrimes), ref(lockObject)));
+	}
+	for (int i = 0; i < noThreads; i++) {
+		threads[i].join();
+	}
+	return noPrimes;
 }
 
 void benchmark(string description, 

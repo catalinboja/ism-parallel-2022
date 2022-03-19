@@ -13,4 +13,5 @@ int main() {
 
 	benchmark("Sequential solution", N, sequentialSolution);
 	benchmark("Parallel solution with reace condition", N, parallelRaceSolution);
+	benchmark("Parallel solution with a mutex", N, parallelMutexSolution);
 }
