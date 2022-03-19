@@ -38,6 +38,29 @@ void countPrimes(long lowerLimit, long upperLimit, long& result) {
 	}
 }
 
+void ompCountPrimes(long lowerLimit, long upperLimit, long& result) {
+
+	long localResult = 0;
+
+#pragma omp parallel for reduction(+:localResult) schedule(dynamic, 1000)
+	for (long i = lowerLimit; i < upperLimit; ++i) {
+		bool isPrime = true;
+		for (long j = 2; j < i / 2; ++j) {
+			if (i % j == 0) {
+				isPrime = false;
+				break;
+			}
+		}
+		if (isPrime) {
+			localResult += 1;
+		}
+	}
+
+	result = localResult;
+}
+
+
+
 void syncCountPrimes(long lowerLimit, long upperLimit, long& result, mutex& mutex) {
 
 	double tStart = omp_get_wtime();
@@ -235,6 +258,12 @@ long parallelBetterLoadBalancingSolutionWithoutMutex(long setSize) {
 	//add 0, 1 and 2
 	result += 3;
 
+	return result;
+}
+
+long ompParallelSolution(long setSize) {
+	long result = 0;
+	ompCountPrimes(0, setSize, result);
 	return result;
 }
 
