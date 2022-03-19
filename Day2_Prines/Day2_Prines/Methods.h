@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 #include <omp.h>
+#include <vector>
+#include <thread>
 
 using namespace std;
 
@@ -27,6 +29,7 @@ long sequentialSolution(long setSize) {
 	long noPrimes = 0;
 	countPrimes(1, setSize, noPrimes);
 	return noPrimes;
+
 }
 
 //
@@ -34,6 +37,24 @@ long sequentialSolution(long setSize) {
 //
 
 long parallelRaceSolution(long setSize) {
+	long noPrimes = 0;
+	int noThreads = omp_get_num_procs();
+
+	vector<thread> threads;
+	long intervalSize = setSize / noThreads;
+
+	for (int i = 0; i < noThreads; ++i) {
+		long lowerLimit = i * intervalSize;
+		long upperLimit = (i + 1) * intervalSize;
+		if (i == noThreads - 1) {
+			upperLimit = setSize;
+		}
+		threads.push_back(thread(countPrimes, lowerLimit, upperLimit, ref(noPrimes)));
+	}
+	for (int i = 0; i < noThreads; i++) {
+		threads[i].join();
+	}
+	return noPrimes;
 
 }
 

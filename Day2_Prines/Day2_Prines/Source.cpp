@@ -12,4 +12,5 @@ int main() {
 	printf("\n Available cores = %d", noCores);
 
 	benchmark("Sequential solution", N, sequentialSolution);
+	benchmark("Parallel solution with reace condition", N, parallelRaceSolution);
 }
