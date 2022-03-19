@@ -81,15 +81,62 @@ int main() {
 	}
 
 	//managing variables
+	//all external varaibles are shared by all threads -> ! race conditions
 
 	printf("\n -------------------------------");
 
+
 	int counter = 0;
-	int noIterations = 10;
-	for (int i = 0; i < noIterations; i++) {
-		counter += 1;
+	int noIterations = 1000;
+
+#pragma omp parallel num_threads(4)
+	{
+		for (int i = 0; i < noIterations; i++) {
+			counter += 1;
+		}
+		printf("\n Counter value is %d", counter);
 	}
-	printf("\n Counter value is %d", counter);
+
+	printf("\n Final counter value is %d", counter);
+
+
+	printf("\n -------------------------------");
+
+
+#pragma omp parallel num_threads(4)
+	{
+		int localCounter = 0;
+		for (int i = 0; i < noIterations; i++) {
+			localCounter += 1;
+		}
+		printf("\n Local counter value is %d", localCounter);
+	}
+
+	printf("\n -------------------------------");
+
+
+#pragma omp parallel num_threads(4) private(counter)
+	{
+		counter = 0;
+		for (int i = 0; i < noIterations; i++) {
+			counter += 1;
+		}
+		printf("\n Counter value is %d", counter);
+	}
+
+	printf("\n -------------------------------");
+
+	counter = 500;
+
+#pragma omp parallel num_threads(4) firstprivate(counter) shared(noIterations)
+	{
+		for (int i = 0; i < noIterations; i++) {
+			counter += 1;
+		}
+		printf("\n Counter value is %d", counter);
+	}
+
+	printf("\n The main counter value is %d", counter);
 
 
 	printf("\n End of example");
