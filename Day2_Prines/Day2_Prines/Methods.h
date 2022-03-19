@@ -7,6 +7,22 @@
 
 using namespace std;
 
+void syncVerifyPrime(long value, long& result, mutex& mutex) {
+	bool isPrime = true;
+	for (long j = 2; j < value / 2; ++j) {
+		if (value % j == 0) {
+			isPrime = false;
+			break;
+		}
+	}
+	mutex.lock();
+	if (isPrime) {
+		result += 1;
+	}
+	mutex.unlock();
+}
+
+
 void countPrimes(long lowerLimit, long upperLimit, long& result) {
 	for (long i = lowerLimit; i < upperLimit; ++i) {
 		bool isPrime = true;
@@ -23,6 +39,9 @@ void countPrimes(long lowerLimit, long upperLimit, long& result) {
 }
 
 void syncCountPrimes(long lowerLimit, long upperLimit, long& result, mutex& mutex) {
+
+	double tStart = omp_get_wtime();
+
 	for (long i = lowerLimit; i < upperLimit; ++i) {
 		bool isPrime = true;
 		for (long j = 2; j < i / 2; ++j) {
@@ -37,6 +56,53 @@ void syncCountPrimes(long lowerLimit, long upperLimit, long& result, mutex& mute
 		}
 		mutex.unlock();
 	}
+
+	double tFinal = omp_get_wtime();
+	printf("\n Thread duration  = %f seconds", tFinal - tStart);
+}
+
+void syncCountPrimesWithGivenStep(long lowerLimit, long upperLimit, long stepSize, long& result, mutex& mutex) {
+
+	double tStart = omp_get_wtime();
+
+	for (long i = lowerLimit; i < upperLimit; i += stepSize) {
+		bool isPrime = true;
+		for (long j = 2; j < i / 2; ++j) {
+			if (i % j == 0) {
+				isPrime = false;
+				break;
+			}
+		}
+		mutex.lock();
+		if (isPrime) {
+			result += 1;
+		}
+		mutex.unlock();
+	}
+
+	double tFinal = omp_get_wtime();
+	printf("\n Thread duration  = %f seconds", tFinal - tStart);
+}
+
+void countPrimesWithGivenStep(long lowerLimit, long upperLimit, long stepSize, long& result) {
+
+	double tStart = omp_get_wtime();
+
+	for (long i = lowerLimit; i < upperLimit; i += stepSize) {
+		bool isPrime = true;
+		for (long j = 2; j < i / 2; ++j) {
+			if (i % j == 0) {
+				isPrime = false;
+				break;
+			}
+		}
+		if (isPrime) {
+			result += 1;
+		}
+	}
+
+	double tFinal = omp_get_wtime();
+	printf("\n Thread duration  = %f seconds", tFinal - tStart);
 }
 
 
@@ -96,6 +162,80 @@ long parallelMutexSolution(long setSize) {
 		threads[i].join();
 	}
 	return noPrimes;
+}
+
+long parallelLoadBalancingSolution(long setSize) {
+	
+	long result = 0;
+	int noThreads = omp_get_num_procs();
+	mutex lockObject;
+	vector<thread> threads;
+
+	for (int i = 0; i < noThreads; i++) {
+		threads.push_back(
+			thread(syncCountPrimesWithGivenStep, i, setSize, noThreads, ref(result), ref(lockObject)));
+	}
+	for (int i = 0; i < noThreads; i++) {
+		threads[i].join();
+	}
+
+	return result;
+}
+
+long parallelBetterLoadBalancingSolution(long setSize) {
+
+	long result = 0;
+	int noThreads = omp_get_num_procs();
+	mutex lockObject;
+	vector<thread> threads;
+
+	//we exclude the even values - they are not prime numbers
+	long startingValue = 1;
+	for (int i = 0; i < noThreads; i++) {
+		threads.push_back(
+			thread(syncCountPrimesWithGivenStep, startingValue, setSize, noThreads*2, ref(result), ref(lockObject)));
+		startingValue += 2;
+	}
+	for (int i = 0; i < noThreads; i++) {
+		threads[i].join();
+	}
+
+	//add 0, 1 and 2
+	result += 3;
+
+	return result;
+}
+
+long parallelBetterLoadBalancingSolutionWithoutMutex(long setSize) {
+
+	long result = 0;
+	int noThreads = omp_get_num_procs();
+	vector<thread> threads;
+
+	long** results = new long* [noThreads];
+	for (int i = 0; i < noThreads; i++) {
+		results[i] = new long[1];
+		results[i][0] = 0;
+	}
+
+	//we exclude the even values - they are not prime numbers
+	long startingValue = 1;
+	for (int i = 0; i < noThreads; i++) {
+		threads.push_back(
+			thread(countPrimesWithGivenStep, startingValue, setSize, noThreads * 2, ref(results[i][0])));
+		startingValue += 2;
+	}
+	for (int i = 0; i < noThreads; i++) {
+		threads[i].join();
+	}
+	for (int i = 0; i < noThreads; i++) {
+		result += results[i][0];
+	}
+
+	//add 0, 1 and 2
+	result += 3;
+
+	return result;
 }
 
 void benchmark(string description, 
